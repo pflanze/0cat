@@ -10,11 +10,12 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/sendfile.h>
 
 void usage () {
     fprintf(stderr,
 	    "usage: 0cat filename\n"
-	    "  Opens filename then splices its filehandle into stdout.\n"
+	    "  Opens filename then sendfile's its filehandle to stdout.\n"
 	    "  Afterwards exits with exit code 0 if successful.\n");
     exit(1);
 }
@@ -40,18 +41,14 @@ int main (int argn, char**argv) {
     }
     size_t len= st.st_size;
     while (len) {
-	ssize_t nspliced=
-	    splice(fd, NULL,
-		   1, NULL,
-		   len,
-		   0);
-	if (nspliced < 0) {
-	    fprintf(stderr, "0cat: splice for: %s: %s\n",
+	ssize_t nsent= sendfile(1, fd, NULL, len);
+	if (nsent < 0) {
+	    fprintf(stderr, "0cat: sendfile for: %s: %s\n",
 		    argv[1],
 		    strerror(errno));
 	    exit(1);
 	}
-	len-= nspliced;
+	len-= nsent;
 	if (len) { fprintf(stderr,"0cat: %i bytes to go\n", len); }
     }
     if (close(1)<0) {
